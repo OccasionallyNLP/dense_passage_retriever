@@ -1,0 +1,7 @@
+wikiextractor
+scikit-learn==1.1.2
+pyrouge==0.1.3
+faiss-gpu==1.7.2
+faiss-cpu==1.7.2
+jupyterlab
+rank_bm25
