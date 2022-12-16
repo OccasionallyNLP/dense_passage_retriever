@@ -51,6 +51,8 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
     - hard negative 찾는 데에 150시간 소요.
         Decision Make : hard negative 없이 dpr 학습
 
+5. 학습 시간 - epoch 당 5분. GPU: 3070
+
 # 수정사항  
 
 ## 실험 결과
@@ -64,3 +66,15 @@ wikiextractor
 - https://github.com/attardi/wikiextractor
 faiss
 transformers
+
+## hyperparameters
+|no|name|comment|
+|-|-|-|
+|1|batch size|64|
+|2|fp16|True|
+|3|passage max length|256|
+|4|question max length|64|
+|5|optimizer|Adam|
+|6|learning rate|2e-5|
+|7|warm up strategy|linear till 200 step|
+|8|back bone|klue bert|

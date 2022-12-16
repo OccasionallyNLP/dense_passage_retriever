@@ -12,17 +12,6 @@ def prepare_for_distributed(args, model):
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],output_device = args.local_rank)
     return model
 
-def distributed_load_data(data, local_rank, distributed):
-    examples = []
-    if distributed:
-        world_size = torch.distributed.get_world_size()
-        for k, example in enumerate(data):
-            if not k%world_size == local_rank:
-                continue
-            examples.append(example)
-        return examples
-    return data
-
 def get_global(args, thing):
     to_gather = [torch.zeros_like(thing) for _ in range(torch.distributed.get_world_size())]
     torch.distributed.all_gather(tensor_list = to_gather, tensor = thing)
