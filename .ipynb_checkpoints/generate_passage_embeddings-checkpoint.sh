@@ -1,1 +1,1 @@
-python3 generate_passage_embeddings.py --shard_id 0 --n_shards 1 --passage_path ./data/children/contexts.pkl  --model_path ./output/korquad/best_model --batch_size 64 --output_dir ./output/korquad --distributed False --local_rank 0 --model bert --pool cls --shared False --passage_max_length 256 --contain_title True
+python3 generate_passage_embeddings.py --passage_path ./data/wiki.json  --model_path ./output/korquad/best_model --batch_size 32 --output_dir ./output/korquad --distributed False --model bert --pool cls --shared False --passage_max_length 256 --contain_title True

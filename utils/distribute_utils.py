@@ -12,6 +12,25 @@ def prepare_for_distributed(args, model):
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],output_device = args.local_rank)
     return model
 
+def distributed_load_data(data, local_rank, distributed,drop_last = True):
+    samples = []
+    if distributed:
+        world_size = torch.distributed.get_world_size()
+        if drop_last:
+            data = data[:len(data)//world_size*world_size] # drop last 효과
+        else:
+            num_samples = math.ceil(len(data)/world_size)
+            total_size = num_samples*world_size
+            padding_size = total_size - num_samples
+            if padding_size <= len(data):
+                data += data[:padding_size]
+            else:
+                data += (data*math.ceil(padding_size/len(data)))[:padding_size] 
+        num_samples = math.ceil(len(data)/world_size)
+        samples = data[local_rank:local_rank+num_samples]
+        return samples
+    return data
+
 def get_global(args, thing):
     to_gather = [torch.zeros_like(thing) for _ in range(torch.distributed.get_world_size())]
     torch.distributed.all_gather(tensor_list = to_gather, tensor = thing)

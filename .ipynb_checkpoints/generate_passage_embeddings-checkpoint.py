@@ -17,7 +17,7 @@ from utils.model import get_back_bone_model
 from utils.data_utils import *
 from utils.utils import *
 from utils.tools import str2bool
-from utils.distribute_utils import prepare_for_distributed, distributed_load_data, get_global, gather_tensors
+from utils.distribute_utils import prepare_for_distributed, get_global, gather_tensors, distributed_load_data
 import math
 
 def get_args():
@@ -35,7 +35,7 @@ def get_args():
     parser.add_argument('--output_dir', type=str)
 
     # distributed 관련
-    parser.add_argument('--local_rank', type=int, default = -1)
+    parser.add_argument('--local_rank', type=int, default = 0)
     parser.add_argument('--distributed', type=str2bool, default = False)
 
     # model 관련
@@ -62,9 +62,9 @@ def prepare_model(config, args, model_type):
     return model
 
 # generate passage embedding for each shard.
-def generate_passage_embeddings(args, model, tokenizer):
+def generate_passage_embeddings(args, total_passage, model, tokenizer):
     # shard 개수 만큼 data를 불러오고 나서 distributed 진행하면 될 듯.
-    passages = load_data(args.passage_path, args.local_rank, args.distributed, drop_last = False)
+    passages = distributed_load_data(list(total_passage.values()), args.local_rank, args.distributed, drop_last = False)
     passage_dataset = DprPassageDataset(args, passages, tokenizer)
     passage_sampler = SequentialSampler(passage_dataset)
     passage_dataloader = DataLoader(passage_dataset, batch_size = args.batch_size, sampler = passage_sampler, collate_fn = passage_dataset._collate_fn)
@@ -83,18 +83,17 @@ def generate_passage_embeddings(args, model, tokenizer):
     if args.distributed:
         passage_embeddings_ = gather_tensors(np.array(passage_embeddings))
         if args.local_rank == 0:
-            total_data = load_data(args.passage_path, args.local_rank, False, False)
-            total_data_len = len(total_data)
+            total_data_len = len(total_passage)
             total = []
             for i in passage_embeddings_:
                 for a in i:
                     total.append(a)
             total = total[:total_data_len]
-            total = {i:j for zip(total_data.keys(), total)}
+            total = {i:j for i,j in zip(total_data.keys(), total)}
             with open(os.path.join(args.output_dir,'passage_embeddings'),'wb') as f:
                 pickle.dump(total, f)
     else:
-        total = {i:j for i,j in zip(passages.keys(), passage_embeddings)}
+        total = {i:j for i,j in zip(total_passages.keys(), passage_embeddings)}
         with open(os.path.join(args.output_dir,'passage_embeddings'),'wb') as f:
             pickle.dump(total, f)
         
@@ -114,7 +113,8 @@ def main():
     else:
         model.cuda()
     
-    passages = json.load(open(args.passage_path,'rb'))
+    total_passage = json.load(open(args.passage_path,'rb'))
+    
     # shard - uncertain.
     #shard_size = math.ceil(len(passages) / args.n_shards)
     #start_idx = args.shard_id * shard_size
@@ -123,7 +123,7 @@ def main():
     #keys = list(passages.keys())[start_idx:end_idx]
     #for i in keys:
     #    shard_passages.append(passages[i])
-    generate_passage_embeddings(args, model, tokenizer)
+    generate_passage_embeddings(args, total_passage, model, tokenizer)
     
 if __name__ == '__main__':
     main()
