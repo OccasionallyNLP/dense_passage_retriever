@@ -53,6 +53,10 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
 
 5. 학습 시간 - epoch 당 5분. GPU: 3070
 
+6. shard 관련
+    - 일단은 1로 설정함 
+    - passage 분산 처리 
+
 # 수정사항  
 
 ## 실험 결과

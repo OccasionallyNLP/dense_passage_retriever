@@ -34,9 +34,7 @@ class DprPassageDataset(Dataset):
                 passages.append(b['title']+' '+b['context'])
             else:
                 passages.append(b['context'])
-            labels.append(b['_id'])
         output = self.tokenizer(passages, max_length = self.passage_max_length, padding = 'max_length', truncation = True, return_tensors = 'pt')
-        output['labels']=labels
         return output
     
 class DprTrainDataset(Dataset):

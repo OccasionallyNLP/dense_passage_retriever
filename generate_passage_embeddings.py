@@ -25,8 +25,9 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     # index name
-    parser.add_argument('--shard_id', type=int, default = 0) 
-    parser.add_argument('--n_shards', type=int, default = 1) 
+    # parser.add_argument('--shard_id', type=int, default = 0) 
+    # parser.add_argument('--n_shards', type=int, default = 1) 
+    
     # data
     parser.add_argument('--passage_path', type=str)
     parser.add_argument('--model_path', type=str)
@@ -61,10 +62,10 @@ def prepare_model(config, args, model_type):
     return model
 
 # generate passage embedding for each shard.
-def generate_passage_embeddings(args, model, shard_passages, tokenizer, shard_id, data):
+def generate_passage_embeddings(args, model, tokenizer):
     # shard 개수 만큼 data를 불러오고 나서 distributed 진행하면 될 듯.
-    shard_passages = load_data(shard_passages, args.local_rank, args.distributed)
-    passage_dataset = DprPassageDataset(args, shard_passages, tokenizer)
+    passages = load_data(args.passage_path, args.local_rank, args.distributed, drop_last = False)
+    passage_dataset = DprPassageDataset(args, passages, tokenizer)
     passage_sampler = SequentialSampler(passage_dataset)
     passage_dataloader = DataLoader(passage_dataset, batch_size = args.batch_size, sampler = passage_sampler, collate_fn = passage_dataset._collate_fn)
     iter_bar = tqdm(passage_dataloader, desc='step', disable=args.local_rank not in [-1,0])
@@ -73,28 +74,28 @@ def generate_passage_embeddings(args, model, shard_passages, tokenizer, shard_id
     passage_embeddings = []
     with torch.no_grad():
         for data in iter_bar:
-            labels = data['labels']
-            db_indices.extend(labels)
-            data = {i:j.cuda() for i,j in data.items() if i!='labels'}
+            data = {i:j.cuda() for i,j in data.items()}
             if args.distributed:
                 out = model.module.passage_encoder(**data).cpu().tolist()
             else:
                 out = model.passage_encoder(**data).cpu().tolist()
             passage_embeddings.extend(out)
     if args.distributed:
-        db_indices_ = gather_tensors(np.array(db_indices))
-        passage_embeddings_ = gather_tensors( np.array(passage_embeddings))
+        passage_embeddings_ = gather_tensors(np.array(passage_embeddings))
         if args.local_rank == 0:
+            total_data = load_data(args.passage_path, args.local_rank, False, False)
+            total_data_len = len(total_data)
             total = []
-            for i,j in zip(db_indices_, passage_embeddings_):
-                for a,b in zip(i,j):
-                    total.append((int(a),b))
-            total = sorted(total, key = lambda i : i[0])
-            with open(os.path.join(args.output_dir,'passage_embeddings_%d')%shard_id,'wb') as f:
+            for i in passage_embeddings_:
+                for a in i:
+                    total.append(a)
+            total = total[:total_data_len]
+            total = {i:j for zip(total_data.keys(), total)}
+            with open(os.path.join(args.output_dir,'passage_embeddings'),'wb') as f:
                 pickle.dump(total, f)
     else:
-        total = [(int(i),j) for i,j in zip(db_indices, passage_embeddings)]
-        with open(os.path.join(args.output_dir,'passage_embeddings_%d')%shard_id,'wb') as f:
+        total = {i:j for i,j in zip(passages.keys(), passage_embeddings)}
+        with open(os.path.join(args.output_dir,'passage_embeddings'),'wb') as f:
             pickle.dump(total, f)
         
 def main():
@@ -114,18 +115,15 @@ def main():
         model.cuda()
     
     passages = json.load(open(args.passage_path,'rb'))
-    # passages = make_index(passages)
-    for i,j in passages.items():
-        j['_id']=i
-    shard_size = math.ceil(len(passages) / args.n_shards)
-    start_idx = args.shard_id * shard_size
-    end_idx = start_idx + shard_size
-    shard_passages = []
-    keys = list(passages.keys())[start_idx:end_idx]
-    for i in keys:
-        shard_passages.append(passages[i])
-    shard_passages = distributed_load_data(shard_passages, args.local_rank, args.distributed)
-    generate_passage_embeddings(args, model, shard_passages, tokenizer, args.shard_id, shard_passages)
+    # shard - uncertain.
+    #shard_size = math.ceil(len(passages) / args.n_shards)
+    #start_idx = args.shard_id * shard_size
+    #end_idx = start_idx + shard_size
+    #shard_passages = []
+    #keys = list(passages.keys())[start_idx:end_idx]
+    #for i in keys:
+    #    shard_passages.append(passages[i])
+    generate_passage_embeddings(args, model, tokenizer)
     
 if __name__ == '__main__':
     main()

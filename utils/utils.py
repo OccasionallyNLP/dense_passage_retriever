@@ -78,19 +78,24 @@ def make_index(data):
         i['_id']=_
     return data       
 
-def load_data(data_path, local_rank, distributed):
+def load_data(data_path, local_rank, distributed, drop_last = True):
     data = load_jsonl(data_path)
     samples = []
     if distributed:
         world_size = torch.distributed.get_world_size()
-        data = data[:len(data)//world_size*world_size]
-        data = make_index(data)
-        for k,example in enumerate(data):
-            if not k%world_size == local_rank:
-                continue
-            samples.append(example)
+        if drop_last:
+            data = data[:len(data)//world_size*world_size] # drop last 효과
+        else:
+            num_samples = math.ceil(len(data)/world_size)
+            total_size = num_samples*world_size
+            padding_size = total_size - num_samples
+            if padding_size <= len(data):
+                data += data[:padding_size]
+            else:
+                data += (data*math.ceil(padding_size/len(data)))[:padding_size] 
+        num_samples = math.ceil(len(data)/world_size)
+        samples = data[local_rank:local_rank+num_samples]
         return samples
-    data = make_index(data)
     return data
 
 class EarlyStopping(object):
