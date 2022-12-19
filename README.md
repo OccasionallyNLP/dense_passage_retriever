@@ -50,6 +50,7 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
     - bm25 inference (dev data) 하는 데에 15시간 소요. 
     - hard negative 찾는 데에 150시간 소요.
         Decision Make : hard negative 없이 dpr 학습
+        - 개발 PC로 작업 예정 (12.19)
 
 5. 학습 시간 - epoch 당 5분. GPU: 3070
 
@@ -57,13 +58,21 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
     - 일단은 1로 설정함 
     - passage 분산 처리 
 
+7. faiss 관련
+    - 아직 적용 안함.
+
+8. batch 내에 동일한 context가 있을 경우 제외하는 코드 작업이 필요함.
+
 # 수정사항  
 
 ## 실험 결과
 |no|backbone|data|설명|비고|
-|-|-|-|-|-|
+|1|bm25|korquad|sparse representation|-|
+|2|klue bert|korquad|dense representation|-|
+
 |no|R@1|R@5|R@20|R@100|
-|-|-|-|-|-|
+|1|0.57|0.78|0.87|0.93|
+|2|-|-|-|-|
 
 ## 필요 library - 정리 중
 wikiextractor

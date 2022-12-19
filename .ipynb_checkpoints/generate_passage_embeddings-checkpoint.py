@@ -93,7 +93,7 @@ def generate_passage_embeddings(args, total_passage, model, tokenizer):
             with open(os.path.join(args.output_dir,'passage_embeddings'),'wb') as f:
                 pickle.dump(total, f)
     else:
-        total = {i:j for i,j in zip(total_passages.keys(), passage_embeddings)}
+        total = {i:j for i,j in zip(total_passage.keys(), passage_embeddings)}
         with open(os.path.join(args.output_dir,'passage_embeddings'),'wb') as f:
             pickle.dump(total, f)
         

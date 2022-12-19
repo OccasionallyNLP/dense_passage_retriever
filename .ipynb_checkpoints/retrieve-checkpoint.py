@@ -26,25 +26,25 @@ def get_args():
     parser = argparse.ArgumentParser()
     # index
     # 가능한 option - with faiss, w/o faiss
-    parser.add_argument('--index_name', type=str)
-    parser.add_argument('--buffer_size', type=int, default=50000)
+    #parser.add_argument('--index_name', type=str)
+    #parser.add_argument('--buffer_size', type=int, default=50000)
     parser.add_argument('--vector_dim', type=int, default=768)
     parser.add_argument('--passage_path', type=str)
     parser.add_argument('--model_path', type=str)
     parser.add_argument('--batch_size', type=int, default = 32)
     parser.add_argument('--output_dir', type=str)
-    parser.add_argument('--with_faiss', type=str2bool, default = False)
-    parser.add_argument('--local_rank', type=int, default = -1)
+    #parser.add_argument('--with_faiss', type=str2bool, default = False)
+    parser.add_argument('--local_rank', type=int, default = 0)
     parser.add_argument('--distributed', type=str2bool, default = False)
     parser.add_argument('--model', type=str, default = 'bert', choices = ['bert','roberta'], help = 'back bone model')
     parser.add_argument('--pool', type=str, default = 'cls', choices = ['cls','mean'], help = 'sentence representation') # second option 가능
     parser.add_argument('--shared', type= str2bool, default = False, help = 'share query encoder and passage encoder')
     parser.add_argument('--question_max_length',type= int)
-    parser.add_argument('--include_history',type= str2bool) #XXX
-    parser.add_argument('--just_user', type=str2bool, default = False) # XXX
-    parser.add_argument('--history_n',type=int) # XXX
-    parser.add_argument('--n_shards', type = int, default = 1)
-    parser.add_argument('--k', type = int, default = 100)
+    #parser.add_argument('--include_history',type= str2bool) #XXX
+    #parser.add_argument('--just_user', type=str2bool, default = False) # XXX
+    #parser.add_argument('--history_n',type=int) # XXX
+    #parser.add_argument('--n_shards', type = int, default = 1)
+    #parser.add_argument('--k', type = int, default = 100)
     parser.add_argument('--test_data', type = str)
     args = parser.parse_args()
     return args
@@ -60,19 +60,16 @@ def prepare_model(config, args, model_type):
     model.load_state_dict(torch.load(args.model_path, map_location = 'cpu'))
     return model
 
-def load_passage_vectors_db_ids(n_shards, passage_path):
+def load_passage_vectors_db_ids(passage_path):
     total_passage_vectors = []
-    for i in range(n_shards):
-        with open(os.path.join(passage_path,'passage_embeddings_%d')%i,'rb') as f:
-            passage_vectors_i = pickle.load(f)
-        total_passage_vectors.extend(passage_vectors_i)
-    db_ids = [i[0] for i in total_passage_vectors]
-    passage_vectors = [i[1] for i in total_passage_vectors]
+    total_passages = pickle.load(open(passage_path,'rb'))
+    db_ids = [i for i in total_passages.keys()]
+    passage_vectors = [i for i in total_passages.values()]
     return db_ids, passage_vectors
 
 def inference(args, model, tokenizer, index, db_ids, passage_embeddings):
     # data
-    test_data = load_data(args.test_data, local_rank = args.local_rank, distributed = args.distributed)
+    test_data = load_data(args.test_data, local_rank = args.local_rank, distributed = args.distributed, drop_last = False)
     test_sampler = SequentialSampler(test_data)
     collater = Collater(args, tokenizer)
     test_dataloader = DataLoader(test_data, batch_size = args.batch_size, sampler = test_sampler, collate_fn = collater._collate_fn)
