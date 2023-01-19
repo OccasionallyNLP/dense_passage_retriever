@@ -21,8 +21,8 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
     - korquad 전처리 : wiki version 문제, 어절 단위로 본문을 나누면서 소실되는 answer 등으로 인해 개수 감소.
         - original train 개수 : 60407
         - original dev 개수 : 5774
-        - preprocessed train 개수 : 51237
-        - preprocessed dev 개수 : 4909  
+        - preprocessed train 개수 : 41,501 - 이를 다시, 
+        - preprocessed dev 개수 : 4,612  
             - question embedding 만들 때 max length는 64 수준으로 설정.  
         
     - tydi 전처리  
@@ -43,38 +43,33 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
 3. in batch negative를 활용하기에, 동일한 batch 내에 같은 passage를 쓰는 경우는 batch에서 제외시킴
     - 이로 인해 batch마다 실제 batch 개수가 상이할 수 있음.
     - 원래는 Sampler에서 이를 변경하고자 했으나, 분산 학습까지 가면, 각각의 gpu에서 len(dataloader)가 동일해야 되는 문제가 있어서 위의 방법으로 진행.
+    - TODO - distributed sampling에서의 접근
 
 4. bm25로 hard negative 추가하는 코드 작성. 
 - 2022.12.15
     - bm25 학습하는 데에 5분 정도 소요.
     - bm25 inference (dev data) 하는 데에 15시간 소요. 
     - hard negative 찾는 데에 150시간 소요.
-        Decision Make : hard negative 없이 dpr 학습
-        - 개발 PC로 작업 예정 (12.19)
 
 5. 학습 시간 - epoch 당 5분. GPU: 3070
 
-6. shard 관련
-    - 일단은 1로 설정함 
-    - passage 분산 처리 
-
-7. faiss 관련
+6. faiss 관련
     - 아직 적용 안함.
-
-8. batch 내에 동일한 context가 있을 경우 제외하는 코드 작업이 필요함.
 
 # 수정사항  
 
 ## 실험 결과
 |no|backbone|data|설명|비고|
 |1|bm25|korquad|sparse representation|-|
-|2|klue bert|korquad|dense representation|-|
+|2|klue bert|korquad|dense representation|with hard negative|
+|3|klue bert|korquad|dense representation|-|
 
 |no|R@1|R@5|R@20|R@100|
 |1|0.57|0.78|0.87|0.93|
-|2|-|-|-|-|
+|2|0.17|0.34|0.51|0.68|
+|3|||||
 
-## 필요 library - 정리 중
+## 필요 library
 wikiextractor
 - https://github.com/attardi/wikiextractor
 faiss
@@ -83,7 +78,7 @@ transformers
 ## hyperparameters
 |no|name|comment|
 |-|-|-|
-|1|batch size|64|
+|1|batch size|32|
 |2|fp16|True|
 |3|passage max length|256|
 |4|question max length|64|

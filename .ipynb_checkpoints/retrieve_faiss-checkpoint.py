@@ -19,22 +19,32 @@ from utils.tools import str2bool
 from utils.distribute_utils import *
 from utils.model import get_back_bone_model
 from utils.metrics import compute_topk_accuracy
+import faiss
 
 def get_args():
     # parser
     parser = argparse.ArgumentParser()
+    # index
+    # 가능한 option - with faiss, w/o faiss
+    #parser.add_argument('--index_name', type=str)
+    #parser.add_argument('--buffer_size', type=int, default=50000)
     parser.add_argument('--vector_dim', type=int, default=768)
     parser.add_argument('--passage_path', type=str)
     parser.add_argument('--model_path', type=str)
     parser.add_argument('--batch_size', type=int, default = 32)
     parser.add_argument('--output_dir', type=str)
+    #parser.add_argument('--with_faiss', type=str2bool, default = False)
     parser.add_argument('--local_rank', type=int, default = 0)
     parser.add_argument('--distributed', type=str2bool, default = False)
     parser.add_argument('--model', type=str, default = 'bert', choices = ['bert','roberta'], help = 'back bone model')
     parser.add_argument('--pool', type=str, default = 'cls', choices = ['cls','mean'], help = 'sentence representation') # second option 가능
     parser.add_argument('--shared', type= str2bool, default = False, help = 'share query encoder and passage encoder')
     parser.add_argument('--question_max_length',type= int)
-    parser.add_argument('--k', type = int, default = 100)
+    #parser.add_argument('--include_history',type= str2bool) #XXX
+    #parser.add_argument('--just_user', type=str2bool, default = False) # XXX
+    #parser.add_argument('--history_n',type=int) # XXX
+    #parser.add_argument('--n_shards', type = int, default = 1)
+    #parser.add_argument('--k', type = int, default = 100)
     parser.add_argument('--test_data', type = str)
     args = parser.parse_args()
     return args
@@ -57,7 +67,7 @@ def load_passage_vectors_db_ids(passage_path):
     passage_vectors = [i for i in total_passages.values()]
     return db_ids, passage_vectors
 
-def inference(args, model, tokenizer, db_ids, passage_embeddings):
+def inference(args, model, tokenizer, index, db_ids, passage_embeddings):
     # data
     test_data = load_data(args.test_data, local_rank = args.local_rank, distributed = args.distributed, drop_last = False)
     test_sampler = SequentialSampler(test_data)
@@ -73,9 +83,16 @@ def inference(args, model, tokenizer, db_ids, passage_embeddings):
             questions, positive_ctxs_ids, _ids = data
             data = {i:j.cuda() for i,j in questions.items()}
             question_embeddings = model.module.question_encoder(**data) if args.distributed else model.question_encoder(**data)
-            score = question_embeddings.matmul(passage_embeddings.T)
-            distances, indices = torch.topk(score, args.k, dim = -1)
-            indices = [[db_ids[j.item()] for j in i] for i in indices]
+            if args.with_faiss:
+                # cpu
+                question_embeddings = question_embeddings.cpu().tolist()
+                question_embeddings = np.array(question_embeddings).astype('float32')
+                # 단일 machine 에서 동작
+                distances, indices = index.search(question_embeddings, args.k)
+            else:
+                score = question_embeddings.matmul(passage_embeddings.T)
+                distances, indices = torch.topk(score, args.k, dim = -1)
+                indices = [[db_ids[j.item()] for j in i] for i in indices]
             predicts.extend(indices)
             if positive_ctxs_ids:
                 actuals.extend(positive_ctxs_ids)    
@@ -125,10 +142,20 @@ def main():
         model = prepare_for_distributed(args, model) 
     else:
         model.cuda()
-    db_ids, passage_embeddings = load_passage_vectors_db_ids(args.passage_path)
-    #index = None
-    #inference(args, model, tokenizer, index, db_ids, passage_embeddings)
-    inference(args, model, tokenizer, db_ids, passage_embeddings)
+    # index 관련
+    if args.index_name:
+        if os.path.exists(args.index_name):
+            index = DenseFlatIndexer(args.buffer_size)
+            index.load(args.index_name)
+    else:
+        db_ids, passage_embeddings = load_passage_vectors_db_ids(args.n_shards, args.passage_path)
+        if args.with_faiss:
+            index = DenseFlatIndexer(args.buffer_size)
+            index.init_index(args.vector_dim)
+            index.index_data(passage_vectors, db_ids)
+        else:
+            index = None
+    inference(args, model, tokenizer, index, db_ids, passage_embeddings)
     
         
 if __name__ == '__main__':

@@ -1,1 +1,3 @@
-python3 retrieve.py --passage_path ./output/children --model_path ./output/children/best_model --batch_size 32 --output_dir ./output/children --with_faiss False --distributed False --model bert --pool cls --shared False --question_max_length 64 --include_history True --n_shards 1 --k 100 --test_data ./data/children/test_data_retriever.jsonl
+#python3 retrieve.py --passage_path ./output/korquad_w_hard_3/passage_embeddings --model_path ./output/korquad_w_hard_3/best_model --batch_size 32 --output_dir ./output/korquad_w_hard_3 --distributed False --model bert --pool cls --shared False --question_max_length 64 --k 100 --test_data ./data/dev.jsonl
+
+python3 retrieve.py --passage_path ./output/korquad/passage_embeddings --model_path ./output/korquad/best_model --batch_size 32 --output_dir ./output/korquad --distributed False --model bert --pool cls --shared False --question_max_length 64 --k 100 --test_data ./data/dev.jsonl

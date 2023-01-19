@@ -48,8 +48,11 @@ class BM25(Retrieval):
     
     def get_top_n(self,query,n):
         result = self.get_score(query)
-        assert n<=self.doc_count, 'document의 길이가 n보다 작습니다.'
-        output = result[:n]
+        if n is not None:
+            assert n<=self.doc_count, 'document의 길이가 n보다 작습니다.'
+            output = result[:n]
+        else:
+            output = result
         return output
 
     def retrieve(self, query, n):
@@ -57,11 +60,12 @@ class BM25(Retrieval):
     
     # hard negative
     def retrieve_without(self, query, answer, n , m):
-        result = self.get_top_n(query,n)  # query와 유사한 context를 가져옴
-        output = []
+        result = self.get_top_n(query,n=None)  # query와 유사한 context를 가져옴
+        positives = result[:n]
+        negatives = []
         for i,score in result:
-            if answer not in self.contexts[str(i)]:
-                if len(output)==m:
+            if answer not in self.contexts[i]['context']:
+                if len(negatives)==m:
                     break
-                output.append(i)
-        return output
+                negatives.append(i)
+        return positives, negatives
