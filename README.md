@@ -7,9 +7,9 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
 # component
 1. 전처리
     - wikipedia 전처리 
-        - original article 개수 : 1005594
+        - original article 개수 : 1,005,594
             - 어절 단위 50으로 article 본문을 쪼개서 passage로 만듦.
-        - passage 개수 : 1346460
+        - passage 개수 : 1,346,460
             klue bert tokenizer로 title과 context를 tokenize 했을 때 길이
             |token 수|min|median|95|99|99.9|max|
             |-|-|-|-|-|-|-|
@@ -19,8 +19,8 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
          
          
     - korquad 전처리 : wiki version 문제, 어절 단위로 본문을 나누면서 소실되는 answer 등으로 인해 개수 감소.
-        - original train 개수 : 60407
-        - original dev 개수 : 5774
+        - original train 개수 : 60,407
+        - original dev 개수 : 5,774
         - preprocessed train 개수 : 41,501 - 이를 다시, 
         - preprocessed dev 개수 : 4,612  
             - question embedding 만들 때 max length는 64 수준으로 설정.  
@@ -60,11 +60,13 @@ contexts로는 2019.02 wikipedia dump file(700MB)을 활용
 
 ## 실험 결과
 |no|backbone|data|설명|비고|
+|-|-|-|-|-|
 |1|bm25|korquad|sparse representation|-|
 |2|klue bert|korquad|dense representation|with hard negative|
 |3|klue bert|korquad|dense representation|-|
 
 |no|R@1|R@5|R@20|R@100|
+|-|-|-|-|-|
 |1|0.57|0.78|0.87|0.93|
 |2|0.17|0.34|0.51|0.68|
 |3|||||
