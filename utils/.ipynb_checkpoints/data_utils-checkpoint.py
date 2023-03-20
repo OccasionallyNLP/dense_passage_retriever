@@ -61,8 +61,10 @@ class DprTrainDataset(Dataset):
                         sampled_indices.append(a)
         questions = self.tokenizer(questions, max_length = self.question_max_length, padding = True, truncation = True, return_tensors = 'pt')
         passages = self.tokenizer(passages, max_length = self.passage_max_length, padding = True, truncation = True, return_tensors = 'pt')
+        question_token_type_ids = None
         if questions.get('token_type_ids') is not None:
             question_token_type_ids = questions.token_type_ids
+        passage_token_type_ids = None
         if passages.get('token_type_ids') is not None:
             passage_token_type_ids = passages.token_type_ids
         labels = torch.tensor(passages_indices)
