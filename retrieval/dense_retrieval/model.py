@@ -9,27 +9,31 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch import tensor as T
-from transformers import PreTrainedModel,RobertaModel, BertModel,T5EncoderModel
+from transformers import PreTrainedModel, RobertaModel, BertModel, T5EncoderModel
 
 class Encoder(PreTrainedModel):
-    def __init__(self, config, args, model):
+    def __init__(self, config, pool, model_class):
         super().__init__(config)
-        self.args = args
-        self.pretrained_model = model(config)
+        self.pool = pool
+        self.pretrained_model = model_class(config)
         
     def init_pretrained_model(self, state_dict):
-        # init pretrained model
         self.pretrained_model.load_state_dict(state_dict) 
     
     def forward(self, input_ids, attention_mask, token_type_ids, **kwargs):
-        if isinstance(self.pretrained_model,BertModel):
+        if isinstance(self.pretrained_model, BertModel):
             output = self.pretrained_model(input_ids, attention_mask, token_type_ids)
+            
         else: 
-            output = self.pretrained_model(input_ids, attention_mask) # output[0] ~ (bs, seq_len, dim)
+            output = self.pretrained_model(input_ids, attention_mask) 
         
-        if self.args.pool=='cls':
-            out = output['pooler_output'] # bs, dim
-        elif self.args.pool == 'mean':
+        if self.pool=='cls':
+            # T5 Encoder만 따로 만들어놔야함.
+            if isinstance(self.pretrained_model, T5EncoderModel):
+                out = output.last_hidden_state[:,0,:] # bs, seq_len, dim
+            else:
+                out = output['pooler_output'] # bs, dim
+        elif self.pool == 'mean':
             out = output['last_hidden_states'].masked_fill(attention_mask.unsqueeze(2).repeat(1,1,self.config.hidden_size)==0,0) # bs, seq_len, dim
             out = out.sum(dim=1) # bs, dim
             s = attention_mask.sum(-1, keepdim=True) # bs, 1

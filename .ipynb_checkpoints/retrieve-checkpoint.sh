@@ -1,3 +1,3 @@
 #python3 retrieve.py --passage_path ./output/korquad_w_hard_3/passage_embeddings --model_path ./output/korquad_w_hard_3/best_model --batch_size 32 --output_dir ./output/korquad_w_hard_3 --distributed False --model bert --pool cls --shared False --question_max_length 64 --k 100 --test_data ./data/dev.jsonl
 
-python3 retrieve.py --passage_path ./output/korquad/passage_embeddings --model_path ./output/korquad/best_model --batch_size 32 --output_dir ./output/korquad --distributed False --model bert --pool cls --shared False --question_max_length 64 --k 100 --test_data ./data/dev.jsonl
+python retrieve.py --check_point_dir ../output/dense_passage_retriever/korquad/context --batch_size 16 --passage_embedding_path ../output/dense_passage_retriever/korquad/context/context_embeddings/embedding_0.pkl --output_dir ../output/dense_passage_retriever/korquad/context --max_length 64 --test_data ../data/KorQuAD_dataset/data_w_context/dev.jsonl --top_k 100
