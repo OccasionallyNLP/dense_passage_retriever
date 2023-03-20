@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from torch import tensor as T
+from typing import List, Optional
 from transformers import PreTrainedModel, RobertaModel, BertModel, T5EncoderModel
 
 class Encoder(PreTrainedModel):
@@ -48,7 +49,7 @@ class DprEncoder(nn.Module):
         self.fix_p_encoder = fix_p_encoder
         self.fix_q_encoder = fix_q_encoder
         
-    def forward(self, passage_input_ids:T, passage_attention_mask:T, passage_token_type_ids:T, question_input_ids:T, question_attention_mask:T, question_token_type_ids:T, labels:None):
+    def forward(self, passage_input_ids:T, passage_attention_mask:T, question_input_ids:T, question_attention_mask:T, passage_token_type_ids:T=None, question_token_type_ids:T=None, labels=None):
         if self.fix_p_encoder:
             with torch.no_grad():
                 ep = self.passage_encoder(input_ids = passage_input_ids, attention_mask = passage_attention_mask, token_type_ids =  passage_token_type_ids)

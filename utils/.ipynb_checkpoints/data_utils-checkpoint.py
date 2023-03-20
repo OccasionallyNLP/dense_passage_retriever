@@ -60,13 +60,14 @@ class DprTrainDataset(Dataset):
                         passages.append(b)
                         sampled_indices.append(a)
         questions = self.tokenizer(questions, max_length = self.question_max_length, padding = True, truncation = True, return_tensors = 'pt')
-        question_token_type_ids = None
+        passages = self.tokenizer(passages, max_length = self.passage_max_length, padding = True, truncation = True, return_tensors = 'pt')
         if questions.get('token_type_ids') is not None:
             question_token_type_ids = questions.token_type_ids
-        passages = self.tokenizer(passages, max_length = self.passage_max_length, padding = True, truncation = True, return_tensors = 'pt')
-        passage_token_type_ids = None
         if passages.get('token_type_ids') is not None:
             passage_token_type_ids = passages.token_type_ids
         labels = torch.tensor(passages_indices)
-        
-        return BatchEncoding(dict(question_input_ids = questions.input_ids, question_attention_mask = questions.attention_mask, question_token_type_ids = question_token_type_ids, passage_input_ids = passages.input_ids, passage_attention_mask = passages.attention_mask, passage_token_type_ids =passage_token_type_ids, labels=labels))
+        if question_token_type_ids is not None and passage_token_type_ids is not None:
+            output = BatchEncoding(dict(question_input_ids = questions.input_ids, question_attention_mask = questions.attention_mask, question_token_type_ids = question_token_type_ids, passage_input_ids = passages.input_ids, passage_attention_mask = passages.attention_mask, passage_token_type_ids =passage_token_type_ids, labels=labels))
+        else:
+            output = BatchEncoding(dict(question_input_ids = questions.input_ids, question_attention_mask = questions.attention_mask, passage_input_ids = passages.input_ids, passage_attention_mask = passages.attention_mask, labels=labels))
+        return output

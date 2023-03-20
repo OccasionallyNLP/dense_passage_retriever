@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 import json
 import math
-from typing import List
+from typing import List, Optional
 import argparse
 from rank_bm25 import BM25Okapi
 from collections import defaultdict, Counter
