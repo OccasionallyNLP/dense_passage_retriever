@@ -138,14 +138,18 @@ def compute_topk_accuracy(answers:List[int], candidates:List[List[int]])->List[f
     # answers : 정답지 - 문서의 id로 구성됨.
     # candidates : 2 dimension List
     # shape : (N, k) <- 즉 k개의 정답지에 대한 id를 지니고 있음.
-    answers = np.array(answers).reshape(-1,1)
+    answers = np.array(answers)
+    assert answers.shape[1]==1
+    answers=answers.reshape(-1)
     candidates = np.array(candidates)
     N,k = candidates.shape
     
     acc_score = []
-    for j in range(1,k+1):
-        a = np.sum(np.sum(candidates[:,:j] == answers, axis=-1)>=1)/N
-        acc_score.append(a)
+    for k_i in range(1,k+1):
+        acc_score_i = []
+        for i,j in zip(answers, candidates):
+            acc_score_i.append(i in candidates[:k_i])
+        acc_score.append(sum(acc_score_i)/N)
     return acc_score
 
 ## precision <- 어차피 prediction(precision에서 분모 값)

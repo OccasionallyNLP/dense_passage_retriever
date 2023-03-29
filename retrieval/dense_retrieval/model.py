@@ -21,7 +21,7 @@ class Encoder(PreTrainedModel):
     def init_pretrained_model(self, state_dict):
         self.pretrained_model.load_state_dict(state_dict) 
     
-    def forward(self, input_ids, attention_mask, token_type_ids, **kwargs):
+    def forward(self, input_ids, attention_mask, token_type_ids=None, **kwargs):
         if isinstance(self.pretrained_model, BertModel):
             output = self.pretrained_model(input_ids, attention_mask, token_type_ids)
             

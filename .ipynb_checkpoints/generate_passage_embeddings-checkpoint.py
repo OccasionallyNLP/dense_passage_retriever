@@ -89,9 +89,10 @@ def main():
     model = retriever_model.passage_encoder
     # single node
     if args.local_rank == -1:  # single-node multi-gpu (or cpu) mode
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(f'cuda:{local_rank}' if torch.cuda.is_available() else 'cpu')
+        torch.cuda.set_device(device) 
         model.to(device)
-    # multi node - TODO
+    # multi gpu
     else:
         pass
     ######################################################################

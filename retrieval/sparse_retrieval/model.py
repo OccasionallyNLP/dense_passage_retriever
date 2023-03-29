@@ -10,18 +10,18 @@ from rank_bm25 import BM25Okapi
 from collections import defaultdict, Counter
 
 class BM25(object):
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer=None):
         self.tokenizer = tokenizer        
         self.bm25 = None
         
     def exec_embedding(self, contexts):
-        tokenized_contexts = [self.tokenizer.tokenize(i['tc']) for i in contexts]
+        tokenized_contexts = [self.tokenizer(i['tc']) for i in contexts]
         self.db_id_to_contexts_id = {i:j['doc_id'] for i,j in enumerate(contexts)}
         bm25 = BM25Okapi(tokenized_contexts) # use basic value
         self.bm25 = bm25        
     
     def get_score(self, query):
-        tokenized_query = self.tokenizer.tokenize(query)
+        tokenized_query = self.tokenizer(query)
         doc_scores = self.bm25.get_scores(tokenized_query)
         sorted_idx = np.argsort(-doc_scores)
         result = [(self.db_id_to_contexts_id[i],doc_scores[i]) for i in sorted_idx]
