@@ -16,11 +16,12 @@ from utils.utils import *
 from utils.distributed_utils import *
 from utils.get_models import get_back_bone_model
 from utils.metrics import compute_topk_accuracy
+from typing import List, Dict
 
 def get_args():
     # parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--passage_embedding_path', type=str)
+    parser.add_argument('--passage_embedding_path', type=str) # folder
     parser.add_argument('--check_point_dir', type=str)
     parser.add_argument('--batch_size', type=int, default = 32)
     parser.add_argument('--output_dir', type=str)
@@ -32,13 +33,19 @@ def get_args():
     return args
 
 def get_passage_embeddings_db_ids(path):
-    data = pickle.load(open(path,'rb'))
+    data = []
+    for i in os.listdir(path):
+        if i.endswith('pkl'):
+            cur_path = os.path.join(path,i)
+            d = pickle.load(open(cur_path,'rb'))
+            data.append(d)
     db_ids = []
     passage_embeddings = []
-    for i in data:
-        idx, embedding = i
-        db_ids.append(idx)
-        passage_embeddings.append(embedding)
+    for d in data:
+        for i in d:
+            idx, embedding = i
+            db_ids.append(idx)
+            passage_embeddings.append(embedding)
     return db_ids, passage_embeddings
 
 def inference(data, model, tokenizer, batch_size, device, db_ids, passage_embeddings, max_length=None, top_k=100):
@@ -61,7 +68,20 @@ def inference(data, model, tokenizer, batch_size, device, db_ids, passage_embedd
             indices = [[db_ids[j.item()] for j in i] for i in indices]
             retrieved_ctxs_ids.extend(indices) # indexs - bs, k
             positive_ctxs_ids.extend(batch_positive_ctxs_ids)
-    return positive_ctxs_ids, retrieved_ctxs_ids
+    for i,j in zip(data, retrieved_ctxs_ids):
+        i['retrieved_ctxs_ids']=j
+    return data, positive_ctxs_ids, retrieved_ctxs_ids
+
+def hit(actual:List[int],predict:List[List[int]])->Dict[float]:
+    from collections import defaultdict
+    result = defaultdict(list)
+    for i,j in zip(actual, predict):
+        for k in range(1,101):
+            result[k].append(i in j[:k])
+    output = dict()
+    for i,j in result.items():
+        output[i]=sum(j)/len(j)
+    return output
 
 def main():
     args = get_args()
@@ -73,7 +93,7 @@ def main():
         check_point_args = json.load(f)
     
     ############################ model #######################################################
-    tokenizer, config, model, model_type = get_back_bone_model(check_point_args['model'])
+    tokenizer, config, model, model_type = get_back_bone_model(check_point_args['model'], False)
     # passage encoder
     encoder_p = Encoder(config, check_point_args['pool'], model_type)
     # question encoder
@@ -105,47 +125,11 @@ def main():
     ##########################################################################################
     
     #########################  retrieve #########################################################
-    positive_ctxs_ids, retrieved_ctxs_ids = inference(test_data, model, tokenizer, args.batch_size, device, db_ids, passage_embeddings, max_length=args.max_length, top_k=args.top_k)
-    #########################################################################################
-#     if args.distributed:
-#         positive_ctxs_ids_ = gather_tensors(np.array(positive_ctxs_ids))
-        
-#         total_positive_ctxs_ids = []
-#         for i in positive_ctxs_ids_:
-#             total_positive_ctxs_ids.extend(i)
-#         retrieved_ctxs_ids_ = gather_tensors(np.array(retrieved_ctxs_ids))
-#         total_retrieved_ctxs_ids = []
-#         for i in retrieved_ctxs_ids_:
-#             total_retrieved_ctxs_ids.extend(i)
-            
-#         if args.local_rank == 0:
-#             scores = compute_topk_accuracy(total_positive_ctxs_ids, total_retrieved_ctxs_ids)
-#             print(np.round(scores, 2))
-#             with open(os.path.join(args.output_dir,'result.txt'),'w') as f:
-#                 f.write(str(np.round(scores, 2)))
-#             # tagging
-#             test_data = load_data(args.test_data, local_rank = 0, distributed = False)
-#             for i in test_data:
-#                 i['predicted_ctxs_ids']=total_predicts[i['_id']].tolist()
-#             save_jsonl(args.output_dir,test_data,'attached')
-#     else:
-#         if actuals:
-#             scores = compute_topk_accuracy(actuals, predicts)
-#             print(np.round(scores, 2))
-#             with open(os.path.join(args.output_dir,'result.txt'),'w') as f:
-#                 f.write(str(np.round(scores, 2)))
-#         # tagging
-#         test_data = load_data(args.test_data, local_rank = 0, distributed = False)
-#         for i in test_data:
-#             i['predicted_ctxs_ids']=predicts[i['_id']]
-#         save_jsonl(args.output_dir,test_data,'attached')
-    acc = compute_topk_accuracy(positive_ctxs_ids, retrieved_ctxs_ids)
-    print(np.round(acc, 3))
-    with open(os.path.join(args.output_dir,'result.txt'),'w') as f:
-        f.write(str(np.round(acc, 3)))
-    # for i,j in zip(test_data, retrieved_ctxs_ids):
-    #     i['predicted_ctxs_ids']=total_predicts[i['_id']].tolist()
-    #     save_jsonl(args.output_dir,test_data,'attached')
+    test_data, positive_ctxs_ids, retrieved_ctxs_ids = inference(test_data, model, tokenizer, args.batch_size, device, db_ids, passage_embeddings, max_length=args.max_length, top_k=args.top_k)
+    result = hit(positive_ctxs_ids, retrieved_ctxs_ids)
+    print(result)
+    pickle.dump(result, open(os.path.join(args.output_dir,'result.pkl'),'wb'))
+    
         
 if __name__ == '__main__':
     main()    

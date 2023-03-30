@@ -50,6 +50,11 @@ def get_args():
     parser.add_argument('--pool', type=str, default = 'cls', choices = ['cls','mean'], help = 'sentence representation') # second option 가능
     parser.add_argument('--shared', type= str2bool, default = False, help = 'share query encoder and passage encoder')
 
+    # further train
+    # model path
+    parser.add_argument('--model_path', type=str)
+    parser.add_argument('--further_train', type=str2bool, default = False)
+    
     # 데이터 관련
     parser.add_argument('--passage_max_length',type= int, default = 512)
     parser.add_argument('--question_max_length', type=int, default = 64)
@@ -187,6 +192,8 @@ def train():
  #########################################################################################
 if __name__=='__main__':
     args = get_args()
+    if args.model_path is not None:
+        args.further_train = True
     if args.local_rank in [-1,0]:
         with open(os.path.join(args.output_dir,'args.txt'), 'w') as f:
             json.dump(args.__dict__, f, indent=2)
@@ -199,19 +206,23 @@ if __name__=='__main__':
     # sanity check
     os.makedirs(args.output_dir, exist_ok = True)
     ############################ model #######################################################
-    tokenizer, config, model, model_type = get_back_bone_model(args.model)
+    tokenizer, config, model, model_type = get_back_bone_model(args.model, args.further_train)
     
     # passage encoder
     encoder_p = Encoder(config, args.pool, model_type)
     # question encoder
     encoder_q = Encoder(config, args.pool, model_type)
+    
+    if not args.further_train:
     # initiate
-    encoder_p.init_pretrained_model(model.state_dict())
-    encoder_q.init_pretrained_model(model.state_dict())
+        encoder_p.init_pretrained_model(model.state_dict())
+        encoder_q.init_pretrained_model(model.state_dict())
     if args.shared:
         model = DprEncoder(encoder_p, encoder_p)
     else:
         model = DprEncoder(encoder_p, encoder_q)
+    if args.further_train:
+        model.load_state_dict(torch.load(args.model_path))
     # distributed 관련
     if args.distributed:
         model = prepare_for_distributed(args, model)
