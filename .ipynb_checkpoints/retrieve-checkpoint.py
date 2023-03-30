@@ -72,7 +72,7 @@ def inference(data, model, tokenizer, batch_size, device, db_ids, passage_embedd
         i['retrieved_ctxs_ids']=j
     return data, positive_ctxs_ids, retrieved_ctxs_ids
 
-def hit(actual:List[int],predict:List[List[int]])->Dict[float]:
+def hit(actual:List[int],predict:List[List[int]])->dict:
     from collections import defaultdict
     result = defaultdict(list)
     for i,j in zip(actual, predict):
@@ -81,6 +81,7 @@ def hit(actual:List[int],predict:List[List[int]])->Dict[float]:
     output = dict()
     for i,j in result.items():
         output[i]=sum(j)/len(j)
+    print(output)
     return output
 
 def main():
